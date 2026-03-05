@@ -552,7 +552,7 @@ packages:
 - pypi: ./
   name: gldemtools2
   version: 0.1.0
-  sha256: 504652fb854807e79a88a583bdc341b85f5db8a5152a5f359a4737be660f8b15
+  sha256: 2a03e7e02fb24b6d0e85469dc0cb29527795e7c18af8ec2bd803f95b6c9e7c01
   requires_python: '>=3.11'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/icu-78.2-h33c6efd_0.conda
   sha256: 142a722072fa96cf16ff98eaaf641f54ab84744af81754c292cb81e0881c0329
