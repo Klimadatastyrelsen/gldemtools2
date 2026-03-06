@@ -7,7 +7,7 @@ jobs:
     name: "Test"
     strategy:
       matrix:
-        runners: [ubuntu-latest, windows-latest]
+        runner: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.runner }}
     steps:
     - uses: actions/checkout@v6
