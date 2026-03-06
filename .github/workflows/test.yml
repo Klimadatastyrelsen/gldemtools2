@@ -12,5 +12,4 @@ jobs:
       with:
         pixi-version: v0.65.0
         cache: true
-        environments: test
-    - run: pixi run -e test test -vv
+    - run: pixi run test -vv
