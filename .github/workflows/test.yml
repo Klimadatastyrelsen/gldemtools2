@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: "Test"
+    name: "Test with Pixi"
     strategy:
       matrix:
         runner: [ubuntu-latest, windows-latest]
