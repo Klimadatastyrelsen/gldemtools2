@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 import gldemtools2.cli
 from . import conftest
@@ -12,11 +13,13 @@ def test_cli_help():
         pass
 
 def test_load_conf():
-    with open(conftest.SAMPLE_CONFIG_PATH, 'rb') as config_file:
-        config = gldemtools2.cli.Config(config_file)
-        assert isinstance(config.strip_index_path, Path)
-        assert isinstance(config.strip_basepath, Path)
-        assert isinstance(config.x_offset, float)
-        assert isinstance(config.y_offset, float)
-        assert isinstance(config.x_interval, float)
-        assert isinstance(config.y_interval, float)
+    config = gldemtools2.cli.Config(conftest.SAMPLE_CONFIG_PATH)
+    assert isinstance(config.strip_index_path, Path)
+    assert isinstance(config.strip_basepath, Path)
+    assert isinstance(config.x_offset, float)
+    assert isinstance(config.y_offset, float)
+    assert isinstance(config.x_interval, float)
+    assert isinstance(config.y_interval, float)
+
+def test_main(output_filename):
+    subprocess.run(['process_tile', conftest.SAMPLE_CONFIG_PATH, '42', '1337', output_filename], check=True)
