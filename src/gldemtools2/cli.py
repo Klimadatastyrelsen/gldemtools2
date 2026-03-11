@@ -4,14 +4,15 @@ import sys
 import tomllib
 
 class Config:
-    def __init__(self, file):
-        config_dict = tomllib.load(file)
-        self.strip_index_path = Path(config_dict['input']['strip_index_path'])
-        self.strip_basepath = Path(config_dict['input']['strip_basepath'])
-        self.x_offset = config_dict['tiling']['x_offset']
-        self.y_offset = config_dict['tiling']['y_offset']
-        self.x_interval = config_dict['tiling']['x_interval']
-        self.y_interval = config_dict['tiling']['y_interval']
+    def __init__(self, path):
+        with open(path, 'rb') as file:
+            config_dict = tomllib.load(file)
+            self.strip_index_path = Path(config_dict['input']['strip_index_path'])
+            self.strip_basepath = Path(config_dict['input']['strip_basepath'])
+            self.x_offset = config_dict['tiling']['x_offset']
+            self.y_offset = config_dict['tiling']['y_offset']
+            self.x_interval = config_dict['tiling']['x_interval']
+            self.y_interval = config_dict['tiling']['y_interval']
 
 def parse_args(args):
     parser = argparse.ArgumentParser()
@@ -23,4 +24,5 @@ def parse_args(args):
     return parsed_args
 
 def main():
-    _input_args = parse_args(sys.argv[1:])
+    input_args = parse_args(sys.argv[1:])
+    _config = Config(input_args.config)
