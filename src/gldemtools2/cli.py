@@ -23,4 +23,4 @@ def parse_args(args):
     return parsed_args
 
 def main():
-    input_args = parse_args(sys.argv[1:])
+    _input_args = parse_args(sys.argv[1:])
