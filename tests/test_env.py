@@ -3,9 +3,6 @@ from pathlib import Path
 import gldemtools2.cli
 from . import conftest
 
-def test_env():
-    pass
-
 def test_cli_help():
     try:
         _parsed_args = gldemtools2.cli.parse_args(['-h'])
