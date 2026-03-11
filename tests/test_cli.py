@@ -4,7 +4,7 @@ import subprocess
 import gldemtools2.cli
 from . import conftest
 
-def test_cli_help():
+def test_help():
     try:
         _parsed_args = gldemtools2.cli.parse_args(['-h'])
         raise RuntimeError("didn't exit when called with '-h' argument")
