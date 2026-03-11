@@ -1,0 +1,11 @@
+# Sample configuration file for processing
+
+[input]
+strip_index_path = "/foo/bar/index.gpkg"
+strip_basepath = "/foo/bar/strips"
+
+[tiling]
+x_offset = 0.0
+y_offset = 0.0
+x_interval = 10000.0
+y_interval = 10000.0

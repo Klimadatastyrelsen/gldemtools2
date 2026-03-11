@@ -1,5 +1,17 @@
 import argparse
+from pathlib import Path
 import sys
+import tomllib
+
+class Config:
+    def __init__(self, file):
+        config_dict = tomllib.load(file)
+        self.strip_index_path = Path(config_dict['input']['strip_index_path'])
+        self.strip_basepath = Path(config_dict['input']['strip_basepath'])
+        self.x_offset = config_dict['tiling']['x_offset']
+        self.y_offset = config_dict['tiling']['y_offset']
+        self.x_interval = config_dict['tiling']['x_interval']
+        self.y_interval = config_dict['tiling']['y_interval']
 
 def parse_args(args):
     parser = argparse.ArgumentParser()
