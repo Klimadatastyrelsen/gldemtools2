@@ -1,10 +1,10 @@
-name: CI
+name: Test
 
 on: [push, pull_request]
 
 jobs:
   test:
-    name: "Test with Pixi"
+    name: "Test with pytest"
     strategy:
       matrix:
         runner: [ubuntu-latest, windows-latest]
