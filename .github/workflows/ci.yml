@@ -1,0 +1,40 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: "Test with pytest"
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - uses: actions/checkout@v6
+    - uses: prefix-dev/setup-pixi@v0.9.4
+      with:
+        pixi-version: v0.65.0
+        cache: true
+    - run: pixi run test -vv
+
+  typecheck:
+    name: "Lint with ruff"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: prefix-dev/setup-pixi@v0.9.4
+        with:
+          pixi-version: v0.65.0
+          cache: true
+      - run: pixi run format
+
+  typecheck:
+    name: "Type check with mypy"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: prefix-dev/setup-pixi@v0.9.4
+        with:
+          pixi-version: v0.65.0
+          cache: true
+      - run: pixi run typecheck
