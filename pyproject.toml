@@ -30,10 +30,17 @@ python = ">=3.14.3,<3.15"
 
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
+mypy = ">=1.19.1,<2"
 
 [tool.pixi.feature.test.tasks]
 test = "pytest"
+typecheck = "mypy ."
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
 test = { features = ["test"], solve-group = "default" }
+
+[[tool.mypy.overrides]]
+# GDAL does not play ball with type checking
+module = ["osgeo.*"]
+ignore_missing_imports = true
