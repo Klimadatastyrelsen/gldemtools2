@@ -40,7 +40,7 @@ class ArcticDemBitmask(IntFlag):
     CLOUD_AND_WATER = 6
     CLOUD_AND_WATER_AND_EDGE = 7
 
-NODATA_VALUE = -9999
+OUTPUT_NODATA_VALUE = -9999
 
 class Config:
     def __init__(self, path: Path) -> None:
@@ -92,6 +92,7 @@ class Tile:
 
     def process_strip_data(self, strip_paths: list[Path], output_path: Path):
         tile_dem_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), np.nan, dtype=np.float32)
+        tile_bitmask_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), ArcticDemBitmask.BAD_EDGE_DATA, dtype=np.uint8)
 
         for (i, strip_path) in enumerate(strip_paths):
             logging.debug(f'Opening strip {strip_path}...')
@@ -100,7 +101,7 @@ class Tile:
             # Can't use pathlib's joining with GDAL VFS paths
             strip_vfs_path = '/vsitar/' + str(strip_path)
             strip_dem_path = strip_vfs_path + f'/{strip_name}_dem.tif'
-            _strip_bitmask_path = strip_vfs_path + f'/{strip_name}_bitmask.tif'
+            strip_bitmask_path = strip_vfs_path + f'/{strip_name}_bitmask.tif'
 
             logging.debug(f'Opening strip DEM {strip_dem_path}...')
             strip_dem_dataset = gdal.Open(strip_dem_path, gdal.GA_ReadOnly)
@@ -109,28 +110,44 @@ class Tile:
             windowed_strip_dem_nodata_value = windowed_strip_dem_band.GetNoDataValue()
             windowed_strip_dem_dataarray = windowed_strip_dem_band.ReadAsArray()
             windowed_strip_dem_dataarray[windowed_strip_dem_dataarray == windowed_strip_dem_nodata_value] = np.nan
-
-            tile_dem_data[i] = windowed_strip_dem_dataarray
-
             strip_dem_dataset = None
 
-        tile_mean_dem_array = np.nanmean(tile_dem_data, axis=0)
-        tile_mean_dem_array[~np.isfinite(tile_mean_dem_array)] = NODATA_VALUE
+            logging.debug(f'Opening strip bitmask {strip_bitmask_path}...')
+            strip_bitmask_dataset = gdal.Open(strip_bitmask_path, gdal.GA_ReadOnly)
+            windowed_strip_bitmask_dataset = self.translate_strip(strip_bitmask_dataset)
+            windowed_strip_bitmask_band = windowed_strip_bitmask_dataset.GetRasterBand(1)
+            # NODATA is 1 (BAD_EDGE_DATA) for the bitmask. Keep this as is
+            _windowed_strip_bitmask_nodata_value = windowed_strip_bitmask_band.GetNoDataValue()
+            windowed_strip_bitmask_dataarray = windowed_strip_bitmask_band.ReadAsArray()
+            strip_bitmask_dataset = None
 
+            tile_dem_data[i] = windowed_strip_dem_dataarray
+            tile_bitmask_data[i] = windowed_strip_bitmask_dataarray
+
+        # Filter out all data not considered "good data" by PGC
+        tile_dem_data[tile_bitmask_data != ArcticDemBitmask.GOOD_DATA] = np.nan
+        tile_mean_dem_array = np.nanmean(tile_dem_data, axis=0)
+        tile_mean_dem_array[~np.isfinite(tile_mean_dem_array)] = OUTPUT_NODATA_VALUE
+
+        logging.info(f'Writing output data to {output_path}...')
         output_dataset = MEM_DRIVER.Create('', self.config.tile_cols, self.config.tile_rows, 1, gdal.GDT_Float32)
         output_dataset.SetGeoTransform(self.get_geotransform())
         output_band = output_dataset.GetRasterBand(1)
-        output_band.SetNoDataValue(NODATA_VALUE)
+        output_band.SetNoDataValue(OUTPUT_NODATA_VALUE)
         output_band.WriteArray(tile_mean_dem_array)
         COG_DRIVER.CreateCopy(output_path, output_dataset)
 
     def translate_strip(self, strip_dataset: gdal.Dataset) -> gdal.Dataset:
+        strip_dataset_band = strip_dataset.GetRasterBand(1)
+        strip_data_type = strip_dataset_band.DataType
+        strip_nodata_value = strip_dataset_band.GetNoDataValue()
+
         logging.debug('Windowing strip dataset...')
-        output_dataset = MEM_DRIVER.Create('', self.config.tile_cols, self.config.tile_rows, 1, gdal.GDT_Float32)
+        output_dataset = MEM_DRIVER.Create('', self.config.tile_cols, self.config.tile_rows, 1, strip_data_type)
         output_dataset.SetGeoTransform(self.get_geotransform())
         output_band = output_dataset.GetRasterBand(1)
-        output_band.SetNoDataValue(NODATA_VALUE)
-        output_band.Fill(NODATA_VALUE) # otherwise, the areas corresponding to input NODATA will be 0
+        output_band.SetNoDataValue(strip_nodata_value)
+        output_band.Fill(strip_nodata_value) # otherwise, the areas corresponding to input NODATA will be 0
 
         # (minX, minY, maxX, maxY)
         output_bounds = (
@@ -142,7 +159,8 @@ class Tile:
         # gdal.Translate() needs a named output, so we use gdal.Warp() instead
         warp_options = gdal.WarpOptions(
             outputBounds=output_bounds,
-            dstNodata=NODATA_VALUE,
+            resampleAlg=gdal.GRA_NearestNeighbour, # especially relevant for the bitmask rasters
+            dstNodata=strip_nodata_value,
         )
         # FIXME: throws "Warning 1: All options related to creation ignored in update mode"
         gdal.Warp(
@@ -203,6 +221,9 @@ def main():
     config = Config(input_args.config)
     strip_collection = StripCollection(config)
     tile = Tile(config=config, row=input_args.row, col=input_args.col)
-    _output_path = Path(input_args.out_path)
+    output_path = Path(input_args.out_path)
 
-    _intersecting_strip_paths = strip_collection.get_intersecting_strips(tile)
+    intersecting_strip_paths = strip_collection.get_intersecting_strips(tile)
+    tile.process_strip_data(intersecting_strip_paths, output_path)
+
+    logging.info('Successfully processed tile')
