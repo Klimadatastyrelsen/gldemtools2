@@ -1,10 +1,12 @@
 import argparse
 from collections import OrderedDict
+from enum import IntFlag
 import logging
 from pathlib import Path
 import sys
 import tomllib
 
+import numpy as np
 from osgeo import gdal, ogr, osr
 
 gdal.UseExceptions()
@@ -18,11 +20,26 @@ LOG_LEVELS = OrderedDict([
     ('ERROR', logging.ERROR),
     ('CRITICAL', logging.CRITICAL)
 ])
+
+COG_DRIVER = gdal.GetDriverByName('COG')
 MEM_DRIVER = gdal.GetDriverByName('MEM')
+
 ARCTICDEM_X_GSD = 2.0
 ARCTICDEM_Y_GSD = 2.0
 ARCTICDEM_SRS = osr.SpatialReference()
 ARCTICDEM_SRS.ImportFromEPSG(3413)
+
+# Documented under "Bitmask Format", https://www.pgc.umn.edu/guides/stereo-derived-elevation-models/pgc-dem-products-arcticdem-rema-and-earthdem/#section-7
+class ArcticDemBitmask(IntFlag):
+    GOOD_DATA = 0
+    BAD_EDGE_DATA = 1
+    WATER = 2
+    WATER_AND_EDGE = 3
+    CLOUD = 4
+    CLOUD_AND_EDGE = 5
+    CLOUD_AND_WATER = 6
+    CLOUD_AND_WATER_AND_EDGE = 7
+
 NODATA_VALUE = -9999
 
 class Config:
@@ -73,8 +90,42 @@ class Tile:
         ]
         return geotransform
 
-    def translate_strip(self, strip_dataset) -> gdal.Dataset:
-        logging.info('Windowing strip dataset...')
+    def process_strip_data(self, strip_paths: list[Path], output_path: Path):
+        tile_dem_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), np.nan, dtype=np.float32)
+
+        for (i, strip_path) in enumerate(strip_paths):
+            logging.debug(f'Opening strip {strip_path}...')
+
+            strip_name = str(strip_path.name)[:-7] # remove '.tar.gz' suffix
+            # Can't use pathlib's joining with GDAL VFS paths
+            strip_vfs_path = '/vsitar/' + str(strip_path)
+            strip_dem_path = strip_vfs_path + f'/{strip_name}_dem.tif'
+            _strip_bitmask_path = strip_vfs_path + f'/{strip_name}_bitmask.tif'
+
+            logging.debug(f'Opening strip DEM {strip_dem_path}...')
+            strip_dem_dataset = gdal.Open(strip_dem_path, gdal.GA_ReadOnly)
+            windowed_strip_dem_dataset = self.translate_strip(strip_dem_dataset)
+            windowed_strip_dem_band = windowed_strip_dem_dataset.GetRasterBand(1)
+            windowed_strip_dem_nodata_value = windowed_strip_dem_band.GetNoDataValue()
+            windowed_strip_dem_dataarray = windowed_strip_dem_band.ReadAsArray()
+            windowed_strip_dem_dataarray[windowed_strip_dem_dataarray == windowed_strip_dem_nodata_value] = np.nan
+
+            tile_dem_data[i] = windowed_strip_dem_dataarray
+
+            strip_dem_dataset = None
+
+        tile_mean_dem_array = np.nanmean(tile_dem_data, axis=0)
+        tile_mean_dem_array[~np.isfinite(tile_mean_dem_array)] = NODATA_VALUE
+
+        output_dataset = MEM_DRIVER.Create('', self.config.tile_cols, self.config.tile_rows, 1, gdal.GDT_Float32)
+        output_dataset.SetGeoTransform(self.get_geotransform())
+        output_band = output_dataset.GetRasterBand(1)
+        output_band.SetNoDataValue(NODATA_VALUE)
+        output_band.WriteArray(tile_mean_dem_array)
+        COG_DRIVER.CreateCopy(output_path, output_dataset)
+
+    def translate_strip(self, strip_dataset: gdal.Dataset) -> gdal.Dataset:
+        logging.debug('Windowing strip dataset...')
         output_dataset = MEM_DRIVER.Create('', self.config.tile_cols, self.config.tile_rows, 1, gdal.GDT_Float32)
         output_dataset.SetGeoTransform(self.get_geotransform())
         output_band = output_dataset.GetRasterBand(1)
@@ -93,6 +144,7 @@ class Tile:
             outputBounds=output_bounds,
             dstNodata=NODATA_VALUE,
         )
+        # FIXME: throws "Warning 1: All options related to creation ignored in update mode"
         gdal.Warp(
             output_dataset,
             strip_dataset,
@@ -127,7 +179,7 @@ class StripCollection:
         for strip_feature in index_layer:
             strip_fid = strip_feature.GetFID()
             logging.debug(f'Found strip intersection with FID {strip_fid}')
-            strip_path = strip_feature.GetFieldAsString(self.path_fieldname)
+            strip_path = Path(strip_feature.GetFieldAsString(self.path_fieldname))
             intersecting_strip_paths.append(strip_path)
 
         index_datasrc = None
@@ -151,5 +203,6 @@ def main():
     config = Config(input_args.config)
     strip_collection = StripCollection(config)
     tile = Tile(config=config, row=input_args.row, col=input_args.col)
+    _output_path = Path(input_args.out_path)
 
-    _intersecting_strips = strip_collection.get_intersecting_strips(tile)
+    _intersecting_strip_paths = strip_collection.get_intersecting_strips(tile)
