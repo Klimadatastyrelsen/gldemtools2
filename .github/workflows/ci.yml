@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: "Test with pytest"
+    name: "Test"
     strategy:
       matrix:
         runner: [ubuntu-latest, windows-latest]
@@ -18,7 +18,7 @@ jobs:
     - run: pixi run test -vv
 
   format:
-    name: "Lint with ruff"
+    name: "Format"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -29,7 +29,7 @@ jobs:
       - run: pixi run format
 
   typecheck:
-    name: "Type check with mypy"
+    name: "Type check"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
