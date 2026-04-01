@@ -1,6 +1,8 @@
 from pathlib import Path
 import subprocess
 
+import pytest
+
 import gldemtools2.cli
 from . import conftest
 
@@ -14,6 +16,7 @@ def test_help():
 
 def test_load_conf(config):
     assert isinstance(config.strip_index_path, Path)
+    assert isinstance(config.strip_path_fieldname, str)
     assert isinstance(config.strip_basepath, Path)
     assert isinstance(config.x_offset, float)
     assert isinstance(config.y_offset, float)
@@ -22,6 +25,7 @@ def test_load_conf(config):
     assert isinstance(config.tile_cols, int)
     assert isinstance(config.tile_rows, int)
 
+@pytest.mark.skip(reason='needs valid strip data to succeed')
 def test_main(output_filename):
     subprocess.run(['process_tile', conftest.SAMPLE_CONFIG_PATH, '42', '1337', output_filename], check=True)
 
