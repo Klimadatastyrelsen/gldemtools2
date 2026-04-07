@@ -49,7 +49,6 @@ class Config:
             logging.info(f'Loaded configuration file {path}')
             self.strip_index_path = Path(config_dict['strips']['index_path'])
             self.strip_path_fieldname = str(config_dict['strips']['path_fieldname'])
-            self.strip_basepath = Path(config_dict['strips']['basepath'])
             self.x_offset = float(config_dict['tiling']['x_offset'])
             self.y_offset = float(config_dict['tiling']['y_offset'])
             self.x_interval = float(config_dict['tiling']['x_interval'])
@@ -173,7 +172,6 @@ class Tile:
 class StripCollection:
     def __init__(self, config: Config) -> None:
         self.index_path = config.strip_index_path
-        # self.basepath = config.strip_basepath
         self.path_fieldname = config.strip_path_fieldname
 
     def get_intersecting_strips(self, tile: Tile) -> list[Path]:

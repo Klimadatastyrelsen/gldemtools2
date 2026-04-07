@@ -24,9 +24,6 @@ index_path = "/foo/bar/strip_index.gpkg"
 # (*.tar.gz) for each feature
 path_fieldname = "fileurl"
 
-# TODO: not currently used
-basepath = "/foo/bar/strips"
-
 [tiling]
 # Origin in georeferenced coordinates
 x_offset = 0.0
