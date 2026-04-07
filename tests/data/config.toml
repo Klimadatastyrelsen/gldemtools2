@@ -3,7 +3,6 @@
 [strips]
 index_path = "/foo/bar/index.gpkg"
 path_fieldname = "fileurl"
-basepath = "/foo/bar/strips"
 
 [tiling]
 x_offset = 0.0
