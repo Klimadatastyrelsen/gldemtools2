@@ -17,6 +17,7 @@ def test_help():
 def test_load_conf(config):
     assert isinstance(config.strip_index_path, Path)
     assert isinstance(config.strip_path_fieldname, str)
+    assert isinstance(config.strip_basepath, Path)
     assert isinstance(config.x_offset, float)
     assert isinstance(config.y_offset, float)
     assert isinstance(config.x_interval, float)
