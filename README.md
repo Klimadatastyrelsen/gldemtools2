@@ -24,6 +24,10 @@ index_path = "/foo/bar/strip_index.gpkg"
 # (*.tar.gz) for each feature
 path_fieldname = "fileurl"
 
+# Base path to which the strip paths will be appended to obtain the strips'
+# absolute *.tar.gz paths
+basepath = "/largestorage/strips/"
+
 [tiling]
 # Origin in georeferenced coordinates
 x_offset = 0.0
@@ -55,7 +59,8 @@ options:
 ```
 
 For example, the following will compute tile (42, 1337) in the tiling scheme
-defined by `config.toml`, storing the output in `/foo/bar/dem_42_1337.tif`:
+defined by `/foo/bar/config.toml`, storing the output in
+`/foo/bar/dem_42_1337.tif`:
 ```
-pixi run process_tile config.toml 42 1337 /foo/bar/dem_42_1337.tif
+pixi run process_tile /foo/bar/config.toml 42 1337 /foo/bar/dem_42_1337.tif
 ```
