@@ -49,6 +49,7 @@ class Config:
             logging.info(f'Loaded configuration file {path}')
             self.strip_index_path = Path(config_dict['strips']['index_path'])
             self.strip_path_fieldname = str(config_dict['strips']['path_fieldname'])
+            self.strip_basepath = Path(config_dict['strips']['basepath'])
             self.x_offset = float(config_dict['tiling']['x_offset'])
             self.y_offset = float(config_dict['tiling']['y_offset'])
             self.x_interval = float(config_dict['tiling']['x_interval'])
@@ -90,11 +91,12 @@ class Tile:
         return geotransform
 
     def process_strip_data(self, strip_paths: list[Path], output_path: Path):
+        logging.info('Extracting strip data...')
         tile_dem_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), np.nan, dtype=np.float32)
         tile_bitmask_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), ArcticDemBitmask.BAD_EDGE_DATA, dtype=np.uint8)
 
         for (i, strip_path) in enumerate(strip_paths):
-            logging.debug(f'Opening strip {strip_path}...')
+            logging.debug(f'Opening strip {strip_path} ({i+1} of {len(strip_paths)})...')
 
             strip_name = str(strip_path.name)[:-7] # remove '.tar.gz' suffix
             # Can't use pathlib's joining with GDAL VFS paths
@@ -123,6 +125,7 @@ class Tile:
             tile_dem_data[i] = windowed_strip_dem_dataarray
             tile_bitmask_data[i] = windowed_strip_bitmask_dataarray
 
+        logging.info('Processing extracted data...')
         # Filter out all data not considered "good data" by PGC
         tile_dem_data[tile_bitmask_data != ArcticDemBitmask.GOOD_DATA] = np.nan
         tile_mean_dem_array = np.nanmean(tile_dem_data, axis=0)
@@ -173,6 +176,7 @@ class StripCollection:
     def __init__(self, config: Config) -> None:
         self.index_path = config.strip_index_path
         self.path_fieldname = config.strip_path_fieldname
+        self.basepath = config.strip_basepath
 
     def get_intersecting_strips(self, tile: Tile) -> list[Path]:
         logging.info('Finding strip intersections with tile...')
@@ -196,7 +200,8 @@ class StripCollection:
             strip_fid = strip_feature.GetFID()
             logging.debug(f'Found strip intersection with FID {strip_fid}')
             strip_path = Path(strip_feature.GetFieldAsString(self.path_fieldname))
-            intersecting_strip_paths.append(strip_path)
+            strip_abs_path = self.basepath / strip_path
+            intersecting_strip_paths.append(strip_abs_path)
 
         index_datasrc = None
 
