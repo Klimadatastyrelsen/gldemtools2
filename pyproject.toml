@@ -23,16 +23,16 @@ gldemtools2 = { path = ".", editable = true }
 process_tile = "process_tile"
 
 [tool.pixi.dependencies]
-numpy = ">=2.4.2,<3"
-scipy = ">=1.17.0,<2"
-gdal = ">=3.12.2,<4"
+numpy = ">=2.4.3,<3"
+scipy = ">=1.17.1,<2"
+gdal = ">=3.12.3,<4"
 python = ">=3.14.3,<3.15"
-libgdal-pg = ">=3.12.2,<4"
+libgdal-pg = ">=3.12.3,<4"
 
 [tool.pixi.feature.test.dependencies]
-mypy = ">=1.19.1,<2"
-ruff = ">=0.15.8,<0.16"
-pytest = ">=9.0.2,<10"
+mypy = ">=1.20.1,<2"
+ruff = ">=0.15.10,<0.16"
+pytest = ">=9.0.3,<10"
 
 [tool.pixi.feature.test.tasks]
 test = "pytest"
