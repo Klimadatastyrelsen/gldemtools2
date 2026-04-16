@@ -42,25 +42,29 @@ y_interval = 10000.0
 Assuming a configuration file as described above, each output tile can be
 produced by invoking `pixi run process_tile`:
 ```
-usage: pixi run process_tile [-h]
+usage: pixi run process_tile [-h] [--allow-strip-errors]
                              [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-                             config row col out_path
+                             config row col outdir
 
 positional arguments:
   config                path to TOML config file
   row                   row number of requested tile
   col                   column number of requested tile
-  out_path              (UNSTABLE) desired path to output TIFF file
+  outdir                (UNSTABLE) desired path to output directory
 
 options:
   -h, --help            show this help message and exit
+  --allow-strip-errors  continue processing upon strip read errors
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         logging level
 ```
 
+The provided `outdir` will be created if it does not already exist.
+
 For example, the following will compute tile (42, 1337) in the tiling scheme
-defined by `/foo/bar/config.toml`, storing the output in
-`/foo/bar/dem_42_1337.tif`:
+defined by `/foo/bar/config.toml`, storing the output GeoTIFF rasters in
+`/foo/bar/output/42_1337/`, and instructing the program to keep going if
+corrupt/missing strip files are encountered:
 ```
-pixi run process_tile /foo/bar/config.toml 42 1337 /foo/bar/dem_42_1337.tif
+pixi run process_tile /foo/bar/config.toml 42 1337 /foo/bar/output/42_1337/ --allow-strip-errors
 ```

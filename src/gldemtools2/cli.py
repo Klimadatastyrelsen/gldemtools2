@@ -90,7 +90,9 @@ class Tile:
         ]
         return geotransform
 
-    def process_strip_data(self, strip_paths: list[Path], output_path: Path):
+    def process_strip_data(self, strip_paths: list[Path], output_dir: Path, allow_strip_errors: bool = False) -> int:
+        error_strip_count = 0
+
         logging.info('Extracting strip data...')
         tile_dem_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), np.nan, dtype=np.float32)
         tile_bitmask_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), ArcticDemBitmask.BAD_EDGE_DATA, dtype=np.uint8)
@@ -104,40 +106,112 @@ class Tile:
             strip_dem_path = strip_vfs_path + f'/{strip_name}_dem.tif'
             strip_bitmask_path = strip_vfs_path + f'/{strip_name}_bitmask.tif'
 
-            logging.debug(f'Opening strip DEM {strip_dem_path}...')
-            strip_dem_dataset = gdal.Open(strip_dem_path, gdal.GA_ReadOnly)
-            windowed_strip_dem_dataset = self.translate_strip(strip_dem_dataset)
-            windowed_strip_dem_band = windowed_strip_dem_dataset.GetRasterBand(1)
-            windowed_strip_dem_nodata_value = windowed_strip_dem_band.GetNoDataValue()
-            windowed_strip_dem_dataarray = windowed_strip_dem_band.ReadAsArray()
-            windowed_strip_dem_dataarray[windowed_strip_dem_dataarray == windowed_strip_dem_nodata_value] = np.nan
-            strip_dem_dataset = None
+            try:
+                logging.debug(f'Opening strip DEM {strip_dem_path}...')
+                strip_dem_dataset = gdal.Open(strip_dem_path, gdal.GA_ReadOnly)
+                windowed_strip_dem_dataset = self.translate_strip(strip_dem_dataset)
+                windowed_strip_dem_band = windowed_strip_dem_dataset.GetRasterBand(1)
+                windowed_strip_dem_nodata_value = windowed_strip_dem_band.GetNoDataValue()
+                windowed_strip_dem_dataarray = windowed_strip_dem_band.ReadAsArray()
+                windowed_strip_dem_dataarray[windowed_strip_dem_dataarray == windowed_strip_dem_nodata_value] = np.nan
+                strip_dem_dataset = None
 
-            logging.debug(f'Opening strip bitmask {strip_bitmask_path}...')
-            strip_bitmask_dataset = gdal.Open(strip_bitmask_path, gdal.GA_ReadOnly)
-            windowed_strip_bitmask_dataset = self.translate_strip(strip_bitmask_dataset)
-            windowed_strip_bitmask_band = windowed_strip_bitmask_dataset.GetRasterBand(1)
-            # NODATA is 1 (BAD_EDGE_DATA) for the bitmask. Keep this as is
-            _windowed_strip_bitmask_nodata_value = windowed_strip_bitmask_band.GetNoDataValue()
-            windowed_strip_bitmask_dataarray = windowed_strip_bitmask_band.ReadAsArray()
-            strip_bitmask_dataset = None
+                logging.debug(f'Opening strip bitmask {strip_bitmask_path}...')
+                strip_bitmask_dataset = gdal.Open(strip_bitmask_path, gdal.GA_ReadOnly)
+                windowed_strip_bitmask_dataset = self.translate_strip(strip_bitmask_dataset)
+                windowed_strip_bitmask_band = windowed_strip_bitmask_dataset.GetRasterBand(1)
+                # NODATA is 1 (BAD_EDGE_DATA) for the bitmask. Keep this as is
+                _windowed_strip_bitmask_nodata_value = windowed_strip_bitmask_band.GetNoDataValue()
+                windowed_strip_bitmask_dataarray = windowed_strip_bitmask_band.ReadAsArray()
+                strip_bitmask_dataset = None
+            except RuntimeError as e:
+                if allow_strip_errors:
+                    # likely corrupt/missing strip file, replace with NODATA-ish arrays
+                    logging.error(f'Encountered RuntimeError, skipping strip: {e}')
+                    windowed_strip_dem_dataarray = np.full((self.config.tile_rows, self.config.tile_cols), np.nan)
+                    windowed_strip_bitmask_dataarray = np.ones((self.config.tile_rows, self.config.tile_cols), dtype=np.uint8)
+                    error_strip_count += 1
+                else:
+                    raise e
 
             tile_dem_data[i] = windowed_strip_dem_dataarray
             tile_bitmask_data[i] = windowed_strip_bitmask_dataarray
 
         logging.info('Processing extracted data...')
         # Filter out all data not considered "good data" by PGC
-        tile_dem_data[tile_bitmask_data != ArcticDemBitmask.GOOD_DATA] = np.nan
-        tile_mean_dem_array = np.nanmean(tile_dem_data, axis=0)
+        tile_dem_good_data = tile_dem_data.copy()
+        tile_dem_good_data[tile_bitmask_data != ArcticDemBitmask.GOOD_DATA] = np.nan
+
+        # Compute mean of good data
+        tile_mean_dem_array = np.nanmean(tile_dem_good_data, axis=0)
         tile_mean_dem_array[~np.isfinite(tile_mean_dem_array)] = OUTPUT_NODATA_VALUE
 
-        logging.info(f'Writing output data to {output_path}...')
-        output_dataset = MEM_DRIVER.Create('', self.config.tile_cols, self.config.tile_rows, 1, gdal.GDT_Float32)
-        output_dataset.SetGeoTransform(self.get_geotransform())
-        output_band = output_dataset.GetRasterBand(1)
-        output_band.SetNoDataValue(OUTPUT_NODATA_VALUE)
-        output_band.WriteArray(tile_mean_dem_array)
-        COG_DRIVER.CreateCopy(output_path, output_dataset)
+        # Compute median of good data
+        tile_median_dem_array = np.nanmedian(tile_dem_good_data, axis=0)
+        tile_median_dem_array[~np.isfinite(tile_median_dem_array)] = OUTPUT_NODATA_VALUE
+
+        # Compute median absolute deviation from median (MAD) of good data
+        tile_median_deviation_array = np.abs(tile_dem_good_data - tile_median_dem_array)
+        tile_mad_dem_array = np.nanmedian(tile_median_deviation_array, axis=0)
+        tile_mad_dem_array[~np.isfinite(tile_mad_dem_array)] = OUTPUT_NODATA_VALUE
+
+        # Compute minimum of good data
+        tile_min_dem_array = np.nanmin(tile_dem_good_data, axis=0)
+        tile_min_dem_array[~np.isfinite(tile_min_dem_array)] = OUTPUT_NODATA_VALUE
+
+        # Compute maximum of good data
+        tile_max_dem_array = np.nanmax(tile_dem_good_data, axis=0)
+        tile_max_dem_array[~np.isfinite(tile_max_dem_array)] = OUTPUT_NODATA_VALUE
+
+        # Compute standard deviation of good data
+        tile_std_array = np.nanstd(tile_dem_good_data, axis=0)
+        tile_std_array[~np.isfinite(tile_std_array)] = OUTPUT_NODATA_VALUE
+
+        # Compute variance of good data
+        tile_var_array = np.nanvar(tile_dem_good_data, axis=0)
+        tile_var_array[~np.isfinite(tile_var_array)] = OUTPUT_NODATA_VALUE
+
+         # Compute count of good data
+        tile_count_array = np.sum(np.isfinite(tile_dem_good_data), axis=0)
+
+        mean_path = output_dir / 'mean.tif'
+        median_path = output_dir / 'median.tif'
+        mad_path = output_dir / 'mad.tif'
+        min_path = output_dir / 'min.tif'
+        max_path = output_dir / 'max.tif'
+        std_path = output_dir / 'std.tif'
+        var_path = output_dir / 'var.tif'
+        count_path = output_dir / 'count.tif'
+
+        logging.info(f'Writing output data...')
+        logging.debug(f'Ensuring output directory {output_dir} exists...')
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        logging.debug(f'Writing DEM mean values to {mean_path}...')
+        write_cog(tile_mean_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, mean_path)
+
+        logging.debug(f'Writing DEM median values to {mean_path}...')
+        write_cog(tile_median_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, median_path)
+
+        logging.debug(f'Writing DEM MAD values to {mad_path}...')
+        write_cog(tile_mad_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, mad_path)
+
+        logging.debug(f'Writing DEM minimum values to {min_path}...')
+        write_cog(tile_min_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, min_path)
+
+        logging.debug(f'Writing DEM maximum values to {mad_path}...')
+        write_cog(tile_max_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, max_path)
+
+        logging.debug(f'Writing DEM standard deviation values to {mean_path}...')
+        write_cog(tile_std_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, std_path)
+
+        logging.debug(f'Writing DEM variance values to {mean_path}...')
+        write_cog(tile_var_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, var_path)
+
+        logging.debug(f'Writing good-data count to {count_path}...')
+        write_cog(tile_count_array, gdal.GDT_UInt16, self.get_geotransform(), 0, count_path)
+
+        return error_strip_count
 
     def translate_strip(self, strip_dataset: gdal.Dataset) -> gdal.Dataset:
         strip_dataset_band = strip_dataset.GetRasterBand(1)
@@ -208,12 +282,22 @@ class StripCollection:
         logging.info(f'Found {len(intersecting_strip_paths)} intersecting strips')
         return intersecting_strip_paths
 
+def write_cog(data_array, gdal_datatype, geotransform, nodata_value, path):
+    rows, cols = data_array.shape
+    output_dataset = MEM_DRIVER.Create('', cols, rows, 1, gdal_datatype)
+    output_dataset.SetGeoTransform(geotransform)
+    output_band = output_dataset.GetRasterBand(1)
+    output_band.SetNoDataValue(nodata_value)
+    output_band.WriteArray(data_array)
+    COG_DRIVER.CreateCopy(path, output_dataset)
+
 def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument('config', type=str, help='path to TOML config file')
     parser.add_argument('row', type=int, help='row number of requested tile')
     parser.add_argument('col', type=int, help='column number of requested tile')
-    parser.add_argument('out_path', type=str, help='(UNSTABLE) desired path to output TIFF file')
+    parser.add_argument('outdir', type=str, help='(UNSTABLE) desired path to output directory')
+    parser.add_argument('--allow-strip-errors', action='store_true', help='continue processing upon strip read errors')
     parser.add_argument('--log-level', type=str, choices=LOG_LEVELS.keys(), default='WARNING', help="logging level")
     parsed_args = parser.parse_args(args)
     return parsed_args
@@ -224,9 +308,13 @@ def main():
     config = Config(input_args.config)
     strip_collection = StripCollection(config)
     tile = Tile(config=config, row=input_args.row, col=input_args.col)
-    output_path = Path(input_args.out_path)
+    output_dir = Path(input_args.outdir)
+    allow_strip_errors = input_args.allow_strip_errors
 
     intersecting_strip_paths = strip_collection.get_intersecting_strips(tile)
-    tile.process_strip_data(intersecting_strip_paths, output_path)
+    error_count = tile.process_strip_data(intersecting_strip_paths, output_dir, allow_strip_errors)
 
-    logging.info('Successfully processed tile')
+    if error_count == 0:
+        logging.info('Successfully processed tile')
+    else:
+        logging.info(f'Finished processing tile, {error_count} strip read error(s) encountered')
