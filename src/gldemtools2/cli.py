@@ -183,7 +183,7 @@ class Tile:
         var_path = output_dir / 'var.tif'
         count_path = output_dir / 'count.tif'
 
-        logging.info(f'Writing output data...')
+        logging.info('Writing output data...')
         logging.debug(f'Ensuring output directory {output_dir} exists...')
         output_dir.mkdir(parents=True, exist_ok=True)
 
