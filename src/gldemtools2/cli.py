@@ -285,6 +285,7 @@ class StripCollection:
 def write_cog(data_array, gdal_datatype, geotransform, nodata_value, path):
     rows, cols = data_array.shape
     output_dataset = MEM_DRIVER.Create('', cols, rows, 1, gdal_datatype)
+    output_dataset.SetSpatialRef(ARCTICDEM_SRS)
     output_dataset.SetGeoTransform(geotransform)
     output_band = output_dataset.GetRasterBand(1)
     output_band.SetNoDataValue(nodata_value)
