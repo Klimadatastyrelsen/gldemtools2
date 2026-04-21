@@ -62,9 +62,27 @@ options:
 The provided `outdir` will be created if it does not already exist.
 
 For example, the following will compute tile (42, 1337) in the tiling scheme
-defined by `/foo/bar/config.toml`, storing the output GeoTIFF rasters in
+defined by `/foo/bar/config.toml`, storing the output COG rasters in
 `/foo/bar/output/42_1337/`, and instructing the program to keep going if
 corrupt/missing strip files are encountered:
 ```
 pixi run process_tile /foo/bar/config.toml 42 1337 /foo/bar/output/42_1337/ --allow-strip-errors
 ```
+
+## Output
+Currently, the `process_tile` utility will produce the following pixelwise
+statistics as COG files in the provided output directory. All statistics are
+computed exclusively from ArcticDEM "good data" (i.e. where ArcticDEM's
+bitmask is 0, see
+[the documentation for PGC's DEM products](https://www.pgc.umn.edu/guides/stereo-derived-elevation-models/pgc-dem-products-arcticdem-rema-and-earthdem/#section-7).)
+
+| File | Description |
+| ---- | ----------- |
+| `count.tif` | Number of strips with data available |
+| `mad.tif` | [Median absolute deviation from the median](https://en.wikipedia.org/wiki/Median_absolute_deviation) (MAD) |
+| `max.tif` | Maximum |
+| `mean.tif` | Arithmetic mean |
+| `median.tif` | Median |
+| `min.tif` | Minimum |
+| `std.tif` | Standard deviation |
+| `var.tif` | Variance |
