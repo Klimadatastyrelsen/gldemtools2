@@ -26,8 +26,7 @@ MEM_DRIVER = gdal.GetDriverByName('MEM')
 
 ARCTICDEM_X_GSD = 2.0
 ARCTICDEM_Y_GSD = 2.0
-ARCTICDEM_SRS = osr.SpatialReference()
-ARCTICDEM_SRS.ImportFromEPSG(3413)
+ARCTICDEM_SRS = osr.SpatialReference(epsg=3413)
 
 # Documented under "Bitmask Format", https://www.pgc.umn.edu/guides/stereo-derived-elevation-models/pgc-dem-products-arcticdem-rema-and-earthdem/#section-7
 class ArcticDemBitmask(IntFlag):
@@ -93,10 +92,10 @@ class Tile:
     def process_strip_data(self, strip_paths: list[Path], output_dir: Path, allow_strip_errors: bool = False) -> int:
         error_strip_count = 0
 
-        logging.info('Extracting strip data...')
         tile_dem_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), np.nan, dtype=np.float32)
         tile_bitmask_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), ArcticDemBitmask.BAD_EDGE_DATA, dtype=np.uint8)
 
+        logging.info('Extracting strip data...')
         for (i, strip_path) in enumerate(strip_paths):
             logging.debug(f'Opening strip {strip_path} ({i+1} of {len(strip_paths)})...')
 
@@ -190,7 +189,7 @@ class Tile:
         logging.debug(f'Writing DEM mean values to {mean_path}...')
         write_cog(tile_mean_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, mean_path)
 
-        logging.debug(f'Writing DEM median values to {mean_path}...')
+        logging.debug(f'Writing DEM median values to {median_path}...')
         write_cog(tile_median_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, median_path)
 
         logging.debug(f'Writing DEM MAD values to {mad_path}...')
@@ -199,13 +198,13 @@ class Tile:
         logging.debug(f'Writing DEM minimum values to {min_path}...')
         write_cog(tile_min_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, min_path)
 
-        logging.debug(f'Writing DEM maximum values to {mad_path}...')
+        logging.debug(f'Writing DEM maximum values to {max_path}...')
         write_cog(tile_max_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, max_path)
 
-        logging.debug(f'Writing DEM standard deviation values to {mean_path}...')
+        logging.debug(f'Writing DEM standard deviation values to {std_path}...')
         write_cog(tile_std_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, std_path)
 
-        logging.debug(f'Writing DEM variance values to {mean_path}...')
+        logging.debug(f'Writing DEM variance values to {var_path}...')
         write_cog(tile_var_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, var_path)
 
         logging.debug(f'Writing good-data count to {count_path}...')
