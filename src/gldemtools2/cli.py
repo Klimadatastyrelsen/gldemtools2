@@ -66,7 +66,7 @@ class MarzulloResult:
         ci_combined_bounds = np.concatenate([ci_lower, ci_upper])
 
         # +/- 1 values corresponding to the lower and upper bounds, respectively, of the confidence intervals
-        plus_ones = np.ones_like(strip_data, dtype=np.int16)
+        plus_ones = np.ones_like(strip_data, dtype=np.int32)
         plus_ones[~np.isfinite(strip_data)] = 0 # don't let NODATA contribute
         minus_ones = -plus_ones
         ci_signs = np.concatenate([plus_ones, minus_ones])
@@ -84,7 +84,7 @@ class MarzulloResult:
         # Get the maximum number of overlapping confidence intervals for each pixel
         overlap_max_val = np.max(overlap_counts, axis=0)
 
-        # Get the indices of the lower and upper bounds of the highest-overlap interval in the sorted confidence interval bounds. np.argmax
+        # Get the indices of the lower and upper bounds of the highest-overlap interval in the sorted confidence interval bounds.
         overlap_max_lower_indices = np.argmax(overlap_counts, axis=0)
         overlap_max_upper_indices = overlap_max_lower_indices + 1
 

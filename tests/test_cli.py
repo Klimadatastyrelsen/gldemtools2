@@ -50,12 +50,12 @@ def test_marzullo():
             [0.5, 0.55,],
             [0.75, 0.5,],
         ],
-    ])
+    ], dtype=np.float32)
 
     expected_result = np.array([
         [0.5, 0.5,],
         [0.5, 0.5,], # TODO decide expected output with no overlaps
-    ])
+    ], dtype=np.float32)
     expected_overlaps = np.array([
         [3, 3,],
         [1, 2,],
@@ -63,5 +63,6 @@ def test_marzullo():
 
     marzullo_result = gldemtools2.cli.MarzulloResult(input_strip_data, 0.1)
 
+    assert marzullo_result.data.dtype == np.float32
     np.testing.assert_array_almost_equal(marzullo_result.data, expected_result)
     np.testing.assert_array_equal(marzullo_result.max_overlap_count, expected_overlaps)
