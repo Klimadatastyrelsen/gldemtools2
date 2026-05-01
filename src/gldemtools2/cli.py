@@ -84,10 +84,14 @@ class MarzulloResult:
         # Get the maximum number of overlapping confidence intervals for each pixel
         overlap_max_val = np.max(overlap_counts, axis=0)
 
-        # Get the indices of the lower and upper bounds of the highest-overlap interval in the sorted confidence interval bounds.
+        # Get the indices of the lower and upper bounds of the highest-overlap
+        # interval in the sorted confidence interval bounds. np.argmax() will
+        # select the first match, thus providing the local maximum of overlap
+        # counts corresponding to the lowest elevation in case of ties.
         overlap_max_lower_indices = np.argmax(overlap_counts, axis=0)
         overlap_max_upper_indices = overlap_max_lower_indices + 1
 
+        # Find midpoint of the highest-overlap interval
         overlap_max_lower = np.take_along_axis(ci_sorted_bounds, overlap_max_lower_indices[np.newaxis, :, :], axis=0)[0]
         overlap_max_upper = np.take_along_axis(ci_sorted_bounds, overlap_max_upper_indices[np.newaxis, :, :], axis=0)[0]
         overlap_max_middle = 0.5 * (overlap_max_lower + overlap_max_upper)

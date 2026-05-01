@@ -39,26 +39,26 @@ def test_tile_geotransform(tile):
 def test_marzullo():
     input_strip_data = np.array([
         [
-            [0.5, 0.5,],
-            [0.5, 0.5,]
+            [0.5, 0.5, np.nan,],
+            [0.5, 0.5, np.nan,]
         ],
         [
-            [0.5, 0.45,],
-            [0.25, 0.75,],
+            [0.5, 0.45, 0.45,],
+            [0.25, 0.75, np.nan,],
         ],
         [
-            [0.5, 0.55,],
-            [0.75, 0.5,],
+            [0.5, 0.55, 0.55],
+            [0.75, 0.5, np.nan,],
         ],
     ], dtype=np.float32)
 
     expected_result = np.array([
-        [0.5, 0.5,],
-        [0.25, 0.5,], # TODO decide expected output with no overlaps
+        [0.5, 0.5, 0.5,],
+        [0.25, 0.5, np.nan,],
     ], dtype=np.float32)
     expected_overlaps = np.array([
-        [3, 3,],
-        [1, 2,],
+        [3, 3, 2,],
+        [1, 2, 0,],
     ])
 
     marzullo_result = gldemtools2.cli.MarzulloResult(input_strip_data, 0.1)
