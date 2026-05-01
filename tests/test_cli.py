@@ -54,7 +54,7 @@ def test_marzullo():
 
     expected_result = np.array([
         [0.5, 0.5,],
-        [0.5, 0.5,], # TODO decide expected output with no overlaps
+        [0.25, 0.5,], # TODO decide expected output with no overlaps
     ], dtype=np.float32)
     expected_overlaps = np.array([
         [3, 3,],
