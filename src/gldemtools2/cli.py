@@ -53,6 +53,7 @@ class Config:
             self.y_offset = float(config_dict['tiling']['y_offset'])
             self.x_interval = float(config_dict['tiling']['x_interval'])
             self.y_interval = float(config_dict['tiling']['y_interval'])
+            self.marzullo_halfwidth = float(config_dict['processing']['marzullo_halfwidth'])
             self.tile_cols = int(self.x_interval / ARCTICDEM_X_GSD)
             self.tile_rows = int(self.y_interval / ARCTICDEM_Y_GSD)
 
@@ -137,6 +138,7 @@ class Tile:
 
         tile_dem_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), np.nan, dtype=np.float32)
         tile_bitmask_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), ArcticDemBitmask.BAD_EDGE_DATA, dtype=np.uint8)
+        marzullo_halfwidth = self.config.marzullo_halfwidth
 
         logging.info('Extracting strip data...')
         for (i, strip_path) in enumerate(strip_paths):
@@ -213,8 +215,12 @@ class Tile:
         tile_var_array = np.nanvar(tile_dem_good_data, axis=0)
         tile_var_array[~np.isfinite(tile_var_array)] = OUTPUT_NODATA_VALUE
 
-         # Compute count of good data
+        # Compute count of good data
         tile_count_array = np.sum(np.isfinite(tile_dem_good_data), axis=0)
+
+        # Apply Marzullo's algorithm
+        marzullo_result = MarzulloResult(tile_dem_good_data, marzullo_halfwidth)
+        marzullo_result.data[~np.isfinite(marzullo_result.data)] = OUTPUT_NODATA_VALUE
 
         mean_path = output_dir / 'mean.tif'
         median_path = output_dir / 'median.tif'
@@ -224,6 +230,8 @@ class Tile:
         std_path = output_dir / 'std.tif'
         var_path = output_dir / 'var.tif'
         count_path = output_dir / 'count.tif'
+        marzullo_path = output_dir / 'marzullo.tif'
+        marzullo_count_path = output_dir / 'marzullo_count.tif'
 
         logging.info('Writing output data...')
         logging.debug(f'Ensuring output directory {output_dir} exists...')
@@ -252,6 +260,12 @@ class Tile:
 
         logging.debug(f'Writing good-data count to {count_path}...')
         write_cog(tile_count_array, gdal.GDT_UInt16, self.get_geotransform(), 0, count_path)
+
+        logging.debug(f"Writing Marzullo's algorithm result to {marzullo_path}...")
+        write_cog(marzullo_result.data, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, marzullo_path)
+
+        logging.debug(f"Writing Marzullo's max-overlap count to {count_path}...")
+        write_cog(marzullo_result.max_overlap_count, gdal.GDT_UInt16, self.get_geotransform(), 0, marzullo_count_path)
 
         return error_strip_count
 
