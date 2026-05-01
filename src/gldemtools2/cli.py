@@ -56,6 +56,45 @@ class Config:
             self.tile_cols = int(self.x_interval / ARCTICDEM_X_GSD)
             self.tile_rows = int(self.y_interval / ARCTICDEM_Y_GSD)
 
+class MarzulloResult:
+    def __init__(self, strip_data: np.ndarray, ci_halfwidth: float) -> None:
+        logging.debug("Applying Marzullo's algorithm...")
+
+        # Lower and upper bounds of the confidence intervals of the assumed uniform distribution
+        ci_lower = strip_data - ci_halfwidth
+        ci_upper = strip_data + ci_halfwidth
+        ci_combined_bounds = np.concatenate([ci_lower, ci_upper])
+
+        # +/- 1 values corresponding to the lower and upper bounds, respectively, of the confidence intervals
+        plus_ones = np.ones_like(strip_data, dtype=np.int16)
+        plus_ones[~np.isfinite(strip_data)] = 0 # don't let NODATA contribute
+        minus_ones = -plus_ones
+        ci_signs = np.concatenate([plus_ones, minus_ones])
+
+        # Get the indices that would sort the combined lower/upper bounds
+        sorting_args = np.argsort(ci_combined_bounds, axis=0)
+
+        # Apply that sorting order to the combined lower/upper bounds and to the +/- 1 values
+        ci_sorted_bounds = np.take_along_axis(ci_combined_bounds, sorting_args, axis=0)
+        sorted_signs = np.take_along_axis(ci_signs, sorting_args, axis=0)
+
+        # Get the number of overlapping confidence intervals at each bound
+        overlap_counts = np.cumsum(sorted_signs, axis=0)
+
+        # Get the maximum number of overlapping confidence intervals for each pixel
+        overlap_max_val = np.max(overlap_counts, axis=0)
+
+        # Get the indices of the lower and upper bounds of the highest-overlap interval in the sorted confidence interval bounds. np.argmax
+        overlap_max_lower_indices = np.argmax(overlap_counts, axis=0)
+        overlap_max_upper_indices = overlap_max_lower_indices + 1
+
+        overlap_max_lower = np.take_along_axis(ci_sorted_bounds, overlap_max_lower_indices[np.newaxis, :, :], axis=0)[0]
+        overlap_max_upper = np.take_along_axis(ci_sorted_bounds, overlap_max_upper_indices[np.newaxis, :, :], axis=0)[0]
+        overlap_max_middle = 0.5 * (overlap_max_lower + overlap_max_upper)
+
+        self.data = overlap_max_middle
+        self.max_overlap_count = overlap_max_val
+
 class Tile:
     def __init__(self, config: Config, row: int, col: int) -> None:
         self.config = config
