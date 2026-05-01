@@ -36,6 +36,11 @@ y_offset = 0.0
 # Tile size in georeferenced coordinates
 x_interval = 10000.0
 y_interval = 10000.0
+
+[processing]
+# Half-width (in meters) of the confidence intervals assumed with Marzullo's
+# algorithm
+marzullo_halfwidth = 5.0
 ```
 
 ## Usage
@@ -80,6 +85,8 @@ bitmask is 0, see
 | ---- | ----------- |
 | `count.tif` | Number of strips with data available |
 | `mad.tif` | [Median absolute deviation from the median](https://en.wikipedia.org/wiki/Median_absolute_deviation) (MAD) |
+| `marzullo.tif` | Optimal result as determined by [Marzullo's algorithm](https://en.wikipedia.org/wiki/Marzullo%27s_algorithm) |
+| `marzullo_count.tif` | Number of overlapping confidence intervals at the Marzullo result |
 | `max.tif` | Maximum |
 | `mean.tif` | Arithmetic mean |
 | `median.tif` | Median |
