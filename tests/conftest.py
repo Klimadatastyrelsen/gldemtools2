@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-import gldemtools2
+import gldemtools2.processing
 
 TEST_DATA_DIR = Path(__file__).parent / "data"
 SAMPLE_CONFIG_PATH = TEST_DATA_DIR / "config.toml"
@@ -14,8 +14,8 @@ def output_filename(tmp_path):
 
 @pytest.fixture()
 def config():
-    return gldemtools2.cli.Config(SAMPLE_CONFIG_PATH)
+    return gldemtools2.processing.Config(SAMPLE_CONFIG_PATH)
 
 @pytest.fixture()
 def tile(config):
-    return gldemtools2.cli.Tile(config, 42, 1337)
+    return gldemtools2.processing.Tile(config, 42, 1337)
