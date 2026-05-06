@@ -237,34 +237,15 @@ class Tile:
         logging.debug(f'Ensuring output directory {output_dir} exists...')
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        logging.debug(f'Writing DEM mean values to {mean_path}...')
         write_cog(tile_mean_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, mean_path)
-
-        logging.debug(f'Writing DEM median values to {median_path}...')
         write_cog(tile_median_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, median_path)
-
-        logging.debug(f'Writing DEM MAD values to {mad_path}...')
         write_cog(tile_mad_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, mad_path)
-
-        logging.debug(f'Writing DEM minimum values to {min_path}...')
         write_cog(tile_min_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, min_path)
-
-        logging.debug(f'Writing DEM maximum values to {max_path}...')
         write_cog(tile_max_dem_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, max_path)
-
-        logging.debug(f'Writing DEM standard deviation values to {std_path}...')
         write_cog(tile_std_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, std_path)
-
-        logging.debug(f'Writing DEM variance values to {var_path}...')
         write_cog(tile_var_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, var_path)
-
-        logging.debug(f'Writing good-data count to {count_path}...')
         write_cog(tile_count_array, gdal.GDT_UInt16, self.get_geotransform(), 0, count_path)
-
-        logging.debug(f"Writing Marzullo's algorithm result to {marzullo_path}...")
         write_cog(marzullo_result.data, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, marzullo_path)
-
-        logging.debug(f"Writing Marzullo's max-overlap count to {count_path}...")
         write_cog(marzullo_result.max_overlap_count, gdal.GDT_UInt16, self.get_geotransform(), 0, marzullo_count_path)
 
         return error_strip_count
@@ -339,6 +320,7 @@ class StripCollection:
         return intersecting_strip_paths
 
 def write_cog(data_array, gdal_datatype, geotransform, nodata_value, path):
+    logging.debug(f"Writing raster output to {path}...")
     rows, cols = data_array.shape
     output_dataset = MEM_DRIVER.Create('', cols, rows, 1, gdal_datatype)
     output_dataset.SetSpatialRef(ARCTICDEM_SRS)
