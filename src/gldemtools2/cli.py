@@ -27,7 +27,10 @@ def parse_args(args):
 
 def main():
     input_args = parse_args(sys.argv[1:])
-    logging.basicConfig(level=LOG_LEVELS[input_args.log_level])
+    logging.basicConfig(
+        format='[%(asctime)s] %(levelname)-8s: %(message)s',
+        level=LOG_LEVELS[input_args.log_level],
+    )
     config = Config(input_args.config)
     strip_collection = StripCollection(config)
     tile = Tile(config=config, row=input_args.row, col=input_args.col)
