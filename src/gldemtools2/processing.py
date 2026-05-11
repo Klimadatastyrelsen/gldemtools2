@@ -308,6 +308,11 @@ class StripCollection:
         logging.info(f'Found {len(intersecting_strip_paths)} intersecting strips')
         return intersecting_strip_paths
 
+    def get_listed_strips(self, strip_path_list: list[Path]) -> list[Path]:
+        logging.info('Using provided strip list for input...')
+        strip_abs_paths = [self.basepath / strip_path for strip_path in strip_path_list]
+        return strip_abs_paths
+
 def write_cog(data_array, gdal_datatype, geotransform, nodata_value, path):
     logging.debug(f"Writing raster output to {path}...")
     rows, cols = data_array.shape
