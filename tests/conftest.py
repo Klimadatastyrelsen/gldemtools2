@@ -27,6 +27,4 @@ def strip_collection(config):
 
 @pytest.fixture()
 def strip_list(config):
-    with open(SAMPLE_STRIP_LIST_PATH) as strip_list_file:
-        relative_paths = [Path(line.strip()) for line in strip_list_file]
-    return relative_paths
+    return gldemtools2.processing.read_strip_list_file(SAMPLE_STRIP_LIST_PATH)

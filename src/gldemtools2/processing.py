@@ -323,3 +323,8 @@ def write_cog(data_array, gdal_datatype, geotransform, nodata_value, path):
     output_band.SetNoDataValue(nodata_value)
     output_band.WriteArray(data_array)
     COG_DRIVER.CreateCopy(path, output_dataset)
+
+def read_strip_list_file(strip_list_path: Path) -> list[Path]:
+    with open(strip_list_path) as strip_list_file:
+        relative_paths = [Path(line.strip()) for line in strip_list_file]
+    return relative_paths

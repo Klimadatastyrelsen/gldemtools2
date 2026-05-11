@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 import sys
 
-from gldemtools2.processing import Config, StripCollection, Tile
+from gldemtools2.processing import Config, StripCollection, Tile, read_strip_list_file
 
 LOG_LEVELS = OrderedDict([
     ('DEBUG', logging.DEBUG),
@@ -42,8 +42,8 @@ def main():
         intersecting_strip_paths = strip_collection.get_intersecting_strips(tile)
     else:
         # override considered strips with argument from --strip-list
-        with open(input_args.strip_list) as strip_list_file:
-            relative_paths = [Path(line.strip()) for line in strip_list_file]
+        strip_list_path = Path(input_args.strip_list)
+        relative_paths = read_strip_list_file(strip_list_path)
         intersecting_strip_paths = strip_collection.get_listed_strips(relative_paths)
 
     error_count = tile.process_strip_data(intersecting_strip_paths, output_dir, allow_strip_errors)
