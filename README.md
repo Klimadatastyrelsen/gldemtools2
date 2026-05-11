@@ -49,6 +49,7 @@ produced by invoking `pixi run process_tile`:
 ```
 usage: pixi run process_tile [-h] [--allow-strip-errors]
                              [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
+                             [--strip-list STRIP_LIST]
                              config row col outdir
 
 positional arguments:
@@ -62,6 +63,8 @@ options:
   --allow-strip-errors  continue processing upon strip read errors
   --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
                         logging level
+  --strip-list STRIP_LIST
+                        path to strip list file to consider instead of strip index
 ```
 
 The provided `outdir` will be created if it does not already exist.
@@ -72,6 +75,17 @@ defined by `/foo/bar/config.toml`, storing the output COG rasters in
 corrupt/missing strip files are encountered:
 ```
 pixi run process_tile /foo/bar/config.toml 42 1337 /foo/bar/output/42_1337/ --allow-strip-errors
+```
+
+The list of strip files to consider can be overridden with the `--strip-list` option. Instead of finding intersecting strips from the strip index, this will make use of the relative strip paths in a simple text file with one strip path per line, such as:
+```
+2m/n60w046/SETSM_s2s041_WV02_20170925_10300100728F1E00_1030010071915C00_2m_lsf_seg1.tar.gz
+2m/n60w046/SETSM_s2s041_WV03_20170925_1040010033A09E00_1040010033858F00_2m_lsf_seg1.tar.gz
+2m/n60w046/SETSM_s2s041_WV02_20200225_10300100A3A86000_10300100A2664800_2m_lsf_seg1.tar.gz
+```
+As usual, these relative paths will be appended to the `basepath` in the configuration file. As an example, overriding the strip index with the strip list in `my-strip-list.txt`:
+```
+pixi run process_tile /foo/bar/config.toml 42 1337 /foo/bar/output/42_1337/ --strip-list my-strip-list.txt
 ```
 
 ## Output

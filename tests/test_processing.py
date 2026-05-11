@@ -51,3 +51,12 @@ def test_marzullo():
     assert marzullo_result.data.dtype == np.float32
     np.testing.assert_array_almost_equal(marzullo_result.data, expected_result)
     np.testing.assert_array_equal(marzullo_result.max_overlap_count, expected_overlaps)
+
+def test_strip_list(strip_list, strip_collection):
+    strip_abs_paths = strip_collection.get_listed_strips(strip_list)
+
+    assert strip_abs_paths == [
+        Path('/foo/bar/strips/2m/n60w046/SETSM_s2s041_WV02_20170925_10300100728F1E00_1030010071915C00_2m_lsf_seg1.tar.gz'),
+        Path('/foo/bar/strips/2m/n60w046/SETSM_s2s041_WV03_20170925_1040010033A09E00_1040010033858F00_2m_lsf_seg1.tar.gz'),
+        Path('/foo/bar/strips/2m/n60w046/SETSM_s2s041_WV02_20200225_10300100A3A86000_10300100A2664800_2m_lsf_seg1.tar.gz'),
+    ]
