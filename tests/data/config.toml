@@ -10,6 +10,3 @@ x_offset = 0.0
 y_offset = 0.0
 x_interval = 10000.0
 y_interval = 10000.0
-
-[processing]
-marzullo_halfwidth = 5.0

@@ -42,52 +42,8 @@ class Config:
             self.y_offset = float(config_dict['tiling']['y_offset'])
             self.x_interval = float(config_dict['tiling']['x_interval'])
             self.y_interval = float(config_dict['tiling']['y_interval'])
-            self.marzullo_halfwidth = float(config_dict['processing']['marzullo_halfwidth'])
             self.tile_cols = int(self.x_interval / ARCTICDEM_X_GSD)
             self.tile_rows = int(self.y_interval / ARCTICDEM_Y_GSD)
-
-class MarzulloResult:
-    def __init__(self, strip_data: np.ndarray, ci_halfwidth: float) -> None:
-        logging.debug("Applying Marzullo's algorithm...")
-
-        # Lower and upper bounds of the confidence intervals of the assumed uniform distribution
-        ci_lower = strip_data - ci_halfwidth
-        ci_upper = strip_data + ci_halfwidth
-        ci_combined_bounds = np.concatenate([ci_lower, ci_upper])
-
-        # +/- 1 values corresponding to the lower and upper bounds, respectively, of the confidence intervals
-        plus_ones = np.ones_like(strip_data, dtype=np.int32)
-        plus_ones[~np.isfinite(strip_data)] = 0 # don't let NODATA contribute
-        minus_ones = -plus_ones
-        ci_signs = np.concatenate([plus_ones, minus_ones])
-
-        # Get the indices that would sort the combined lower/upper bounds
-        sorting_args = np.argsort(ci_combined_bounds, axis=0)
-
-        # Apply that sorting order to the combined lower/upper bounds and to the +/- 1 values
-        ci_sorted_bounds = np.take_along_axis(ci_combined_bounds, sorting_args, axis=0)
-        sorted_signs = np.take_along_axis(ci_signs, sorting_args, axis=0)
-
-        # Get the number of overlapping confidence intervals at each bound
-        overlap_counts = np.cumsum(sorted_signs, axis=0)
-
-        # Get the maximum number of overlapping confidence intervals for each pixel
-        overlap_max_val = np.max(overlap_counts, axis=0)
-
-        # Get the indices of the lower and upper bounds of the highest-overlap
-        # interval in the sorted confidence interval bounds. np.argmax() will
-        # select the first match, thus providing the local maximum of overlap
-        # counts corresponding to the lowest elevation in case of ties.
-        overlap_max_lower_indices = np.argmax(overlap_counts, axis=0)
-        overlap_max_upper_indices = overlap_max_lower_indices + 1
-
-        # Find midpoint of the highest-overlap interval
-        overlap_max_lower = np.take_along_axis(ci_sorted_bounds, overlap_max_lower_indices[np.newaxis, :, :], axis=0)[0]
-        overlap_max_upper = np.take_along_axis(ci_sorted_bounds, overlap_max_upper_indices[np.newaxis, :, :], axis=0)[0]
-        overlap_max_middle = 0.5 * (overlap_max_lower + overlap_max_upper)
-
-        self.data = overlap_max_middle
-        self.max_overlap_count = overlap_max_val
 
 class Tile:
     def __init__(self, config: Config, row: int, col: int) -> None:
@@ -127,7 +83,6 @@ class Tile:
 
         tile_dem_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), np.nan, dtype=np.float32)
         tile_bitmask_data = np.full((len(strip_paths), self.config.tile_rows, self.config.tile_cols), ArcticDemBitmask.BAD_EDGE_DATA, dtype=np.uint8)
-        marzullo_halfwidth = self.config.marzullo_halfwidth
 
         logging.info('Extracting strip data...')
         for (i, strip_path) in enumerate(strip_paths):
@@ -207,10 +162,6 @@ class Tile:
         # Compute count of good data
         tile_count_array = np.sum(np.isfinite(tile_dem_good_data), axis=0)
 
-        # Apply Marzullo's algorithm
-        marzullo_result = MarzulloResult(tile_dem_good_data, marzullo_halfwidth)
-        marzullo_result.data[~np.isfinite(marzullo_result.data)] = OUTPUT_NODATA_VALUE
-
         mean_path = output_dir / 'mean.tif'
         median_path = output_dir / 'median.tif'
         mad_path = output_dir / 'mad.tif'
@@ -219,8 +170,6 @@ class Tile:
         std_path = output_dir / 'std.tif'
         var_path = output_dir / 'var.tif'
         count_path = output_dir / 'count.tif'
-        marzullo_path = output_dir / 'marzullo.tif'
-        marzullo_count_path = output_dir / 'marzullo_count.tif'
 
         logging.info('Writing output data...')
         logging.debug(f'Ensuring output directory {output_dir} exists...')
@@ -234,8 +183,6 @@ class Tile:
         write_cog(tile_std_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, std_path)
         write_cog(tile_var_array, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, var_path)
         write_cog(tile_count_array, gdal.GDT_UInt16, self.get_geotransform(), 0, count_path)
-        write_cog(marzullo_result.data, gdal.GDT_Float32, self.get_geotransform(), OUTPUT_NODATA_VALUE, marzullo_path)
-        write_cog(marzullo_result.max_overlap_count, gdal.GDT_UInt16, self.get_geotransform(), 0, marzullo_count_path)
 
         return error_strip_count
 
